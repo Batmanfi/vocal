@@ -30,6 +30,32 @@ enum MenuBarIcon {
         }
     }
 
+    /// A template copy of the glyph at `size`, for an in-window `NSImageView`. Pair it
+    /// with `tintColor(for:)` via the image view's `contentTintColor` — because the tint
+    /// colors are semantic/dynamic, the glyph recolors automatically when the theme changes.
+    static func templateGlyph(size: CGFloat) -> NSImage? {
+        guard let base = baseTemplate else { return nil }
+        let target = NSSize(width: size, height: size)
+        let out = NSImage(size: target)
+        out.lockFocus()
+        base.draw(in: NSRect(origin: .zero, size: target))
+        out.unlockFocus()
+        out.isTemplate = true
+        return out
+    }
+
+    /// In-window tint for a state. Idle uses `.labelColor` so it adapts to light/dark;
+    /// active states match the menu-bar colors.
+    static func tintColor(for state: AppState) -> NSColor {
+        switch state {
+        case .idle: return .labelColor
+        case .loading: return .tertiaryLabelColor
+        case .recording: return .systemRed
+        case .transcribing: return .controlAccentColor
+        case .error: return .systemRed
+        }
+    }
+
     private static func loadGlyph() -> NSImage? {
         let candidates: [URL?] = [
             Bundle.main.resourceURL?.appendingPathComponent("MenuGlyph.svg"),

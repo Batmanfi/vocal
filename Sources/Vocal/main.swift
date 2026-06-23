@@ -456,7 +456,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setState(_ state: AppState, status: String) {
         applyStatusImage(for: state)
         statusMenuItem.title = status
-        mainWindow.updateStatus(icon: state.icon, text: status)
+        mainWindow.updateStatus(state: state, text: status)
         NSLog("Vocal state: \(status)")
     }
 

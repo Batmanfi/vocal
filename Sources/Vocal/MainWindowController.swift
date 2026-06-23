@@ -23,7 +23,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     var loginEnabledProvider: (() -> Bool)?
 
     // Cached state so a freshly built window shows current values.
-    private var statusIcon = "⏳"
+    private var statusState: AppState = .loading
     private var statusText = "Loading model..."
     private var model = ""
     private var device = "loading…"
@@ -48,9 +48,9 @@ final class MainWindowController: NSObject, NSWindowDelegate {
 
     // MARK: - Updates
 
-    func updateStatus(icon: String, text: String) {
-        statusIcon = icon; statusText = text
-        homeView?.updateStatus(icon: icon, text: text)
+    func updateStatus(state: AppState, text: String) {
+        statusState = state; statusText = text
+        homeView?.updateStatus(state: state, text: text)
         homeView?.reloadStats()
     }
     func updateModel(_ m: String) { model = m; settingsView?.updateModel(m) }
@@ -183,7 +183,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         self.window = window
 
         // Push cached state into the freshly built views.
-        homeView.updateStatus(icon: statusIcon, text: statusText)
+        homeView.updateStatus(state: statusState, text: statusText)
         homeView.updateShortcut(shortcut)
         settingsView.updateModel(model)
         settingsView.updateDevice(device)

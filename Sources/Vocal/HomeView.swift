@@ -8,6 +8,7 @@ final class HomeView: NSView {
     var onOpenAccessibility: (() -> Void)?
     var onToggleLogin: (() -> Void)?
 
+    private let statusIconView = NSImageView()
     private let statusLabel = NSTextField(labelWithString: "Loading…")
     private let deviceLabel = NSTextField(labelWithString: "")
 
@@ -31,8 +32,9 @@ final class HomeView: NSView {
 
     // MARK: - Updates from the controller
 
-    func updateStatus(icon: String, text: String) {
-        statusLabel.stringValue = "\(icon)  \(text)"
+    func updateStatus(state: AppState, text: String) {
+        statusIconView.contentTintColor = MenuBarIcon.tintColor(for: state)
+        statusLabel.stringValue = text
     }
     func updateShortcut(_ spec: HotkeySpec) {
         shortcut = spec
@@ -64,6 +66,9 @@ final class HomeView: NSView {
 
     private func build() {
         // Top bar
+        statusIconView.image = MenuBarIcon.templateGlyph(size: 14)
+        statusIconView.contentTintColor = MenuBarIcon.tintColor(for: .loading)
+        statusIconView.translatesAutoresizingMaskIntoConstraints = false
         statusLabel.font = .systemFont(ofSize: 13, weight: .medium)
         statusLabel.textColor = .secondaryLabelColor
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -77,6 +82,7 @@ final class HomeView: NSView {
         let micIcon = NSImageView(image: DesignKit.symbolImage("mic.fill", pointSize: 12, color: .secondaryLabelColor) ?? NSImage())
         micIcon.translatesAutoresizingMaskIntoConstraints = false
 
+        addSubview(statusIconView)
         addSubview(statusLabel)
         addSubview(deviceLabel)
         addSubview(micIcon)
@@ -131,7 +137,11 @@ final class HomeView: NSView {
 
         NSLayoutConstraint.activate([
             statusLabel.topAnchor.constraint(equalTo: topAnchor, constant: 20),
-            statusLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 28),
+            statusIconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 28),
+            statusIconView.centerYAnchor.constraint(equalTo: statusLabel.centerYAnchor),
+            statusIconView.widthAnchor.constraint(equalToConstant: 14),
+            statusIconView.heightAnchor.constraint(equalToConstant: 14),
+            statusLabel.leadingAnchor.constraint(equalTo: statusIconView.trailingAnchor, constant: 7),
 
             deviceLabel.centerYAnchor.constraint(equalTo: statusLabel.centerYAnchor),
             deviceLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
