@@ -168,4 +168,4 @@ If needed, set `python_executable` to a specific Python path with `parakeet-mlx`
 
 ## License
 
-[MIT](LICENSE) © Kanishq Bansal
+[MIT](LICENSE) © KB
