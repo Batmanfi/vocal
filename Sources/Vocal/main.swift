@@ -46,6 +46,8 @@ struct VocalConfig: Codable {
     var recordingWindow: String = "classic"
     // Convert spoken numbers to digits in the inserted text.
     var formatNumbers: Bool = true
+    // Window appearance: "system", "light", or "dark".
+    var appearance: String = "system"
 
     var hotkey: HotkeySpec {
         HotkeySpec(keyCode: triggerKeyCode, modifierFlags: triggerModifierFlags, isModifierOnly: triggerIsModifierOnly)
@@ -89,6 +91,7 @@ struct VocalConfig: Codable {
         toggleIsModifierOnly = (try? c.decodeIfPresent(Bool.self, forKey: .toggleIsModifierOnly)) ?? defaults.toggleIsModifierOnly
         recordingWindow = (try? c.decodeIfPresent(String.self, forKey: .recordingWindow)) ?? defaults.recordingWindow
         formatNumbers = (try? c.decodeIfPresent(Bool.self, forKey: .formatNumbers)) ?? defaults.formatNumbers
+        appearance = (try? c.decodeIfPresent(String.self, forKey: .appearance)) ?? defaults.appearance
     }
 
     static var configURL: URL {
@@ -154,6 +157,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             setState(.error, status: "Config failed: \(error.localizedDescription)")
         }
 
+        applyAppearance(config.appearance)
+
         recorder = AudioRecorder(sampleRate: config.sampleRate)
         recorder?.onLevel = { [weak self] level in self?.recordingHUD.addLevel(level) }
         buildMainMenu()
@@ -189,12 +194,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindow.onToggleLogin = { [weak self] in self?.toggleLaunchAtLogin() }
         mainWindow.onSetRecordingWindow = { [weak self] in self?.setRecordingWindow($0) }
         mainWindow.onSetFormatNumbers = { [weak self] in self?.setFormatNumbers($0) }
+        mainWindow.onSetAppearance = { [weak self] in self?.setAppearance($0) }
         mainWindow.loginEnabledProvider = { SMAppService.mainApp.status == .enabled }
         mainWindow.updateModel(config.model)
         mainWindow.updateShortcut(config.hotkey)
         mainWindow.updateToggleShortcut(config.toggleHotkey.displayString)
         mainWindow.updateRecordingWindow(config.recordingWindow)
         mainWindow.updateFormatNumbers(config.formatNumbers)
+        mainWindow.updateAppearance(config.appearance)
         mainWindow.refreshLoginState()
     }
 
@@ -579,6 +586,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         config.formatNumbers = enabled
         config.save()
         mainWindow.updateFormatNumbers(enabled)
+    }
+
+    private func setAppearance(_ mode: String) {
+        config.appearance = mode
+        config.save()
+        applyAppearance(mode)
+        mainWindow.updateAppearance(mode)
+        setLastEvent("Appearance: \(mode)")
+    }
+
+    /// Apply "system" / "light" / "dark" to the whole app. Setting `NSApp.appearance`
+    /// makes every window (and the views in them) follow; the menu-bar glyph is rendered
+    /// by the system status bar and is unaffected.
+    private func applyAppearance(_ mode: String) {
+        switch mode {
+        case "light": NSApp.appearance = NSAppearance(named: .aqua)
+        case "dark":  NSApp.appearance = NSAppearance(named: .darkAqua)
+        default:      NSApp.appearance = nil // follow the system setting
+        }
     }
 
     private func updateShortcutMenuTitle() {

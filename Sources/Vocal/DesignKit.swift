@@ -8,6 +8,20 @@ enum DesignKit {
     static let purple = NSColor(srgbRed: 0.46, green: 0.40, blue: 0.95, alpha: 1)
     static let gray   = NSColor(srgbRed: 0.32, green: 0.32, blue: 0.34, alpha: 1)
 
+    /// Returns true when the view's current appearance is dark.
+    static func isDark(_ appearance: NSAppearance) -> Bool {
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+    }
+
+    /// Translucent overlay that reads correctly in both themes: a white wash on dark
+    /// backgrounds, a black wash on light ones (black reads stronger, so it's eased
+    /// down a touch). Resolve this against a view's `effectiveAppearance`.
+    static func overlayCGColor(alpha: CGFloat, appearance: NSAppearance) -> CGColor {
+        let dark = isDark(appearance)
+        let base: NSColor = dark ? .white : .black
+        return base.withAlphaComponent(dark ? alpha : alpha * 0.8).cgColor
+    }
+
     static func symbolImage(_ name: String, pointSize: CGFloat, weight: NSFont.Weight = .semibold, color: NSColor = .white) -> NSImage? {
         guard let base = NSImage(systemSymbolName: name, accessibilityDescription: nil) else { return nil }
         let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: weight)
@@ -43,11 +57,7 @@ enum DesignKit {
         label.alignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
 
-        let cap = NSView()
-        cap.translatesAutoresizingMaskIntoConstraints = false
-        cap.wantsLayer = true
-        cap.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
-        cap.layer?.cornerRadius = 5
+        let cap = OverlayView(alpha: 0.10, cornerRadius: 5)
         cap.addSubview(label)
         NSLayoutConstraint.activate([
             label.topAnchor.constraint(equalTo: cap.topAnchor, constant: 3),
@@ -80,12 +90,7 @@ enum DesignKit {
     }
 
     static func card() -> NSView {
-        let v = NSView()
-        v.translatesAutoresizingMaskIntoConstraints = false
-        v.wantsLayer = true
-        v.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.05).cgColor
-        v.layer?.cornerRadius = 12
-        return v
+        OverlayView(alpha: 0.05, cornerRadius: 12)
     }
 
     static func sectionLabel(_ text: String) -> NSTextField {
@@ -101,12 +106,18 @@ class ClickableRow: NSView {
     private let action: () -> Void
     let highlight = NSView()
     private var trackingArea: NSTrackingArea?
-    var isSelected = false { didSet { updateHighlight() } }
+    var isSelected = false { didSet { applyAppearanceColors() } }
+
+    /// Optional always-on translucent fill behind the row (used by the history cards).
+    /// 0 = transparent (sidebar items rely on the hover/selected highlight only).
+    var baseOverlayAlpha: CGFloat = 0 { didSet { applyAppearanceColors() } }
+    var cornerRadius: CGFloat = 0 { didSet { layer?.cornerRadius = cornerRadius } }
 
     init(action: @escaping () -> Void) {
         self.action = action
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
+        wantsLayer = true
         highlight.wantsLayer = true
         highlight.layer?.cornerRadius = 8
         highlight.translatesAutoresizingMaskIntoConstraints = false
@@ -129,13 +140,50 @@ class ClickableRow: NSView {
         trackingArea = area
     }
 
-    private var isHovered = false { didSet { updateHighlight() } }
-    private func updateHighlight() {
+    private var isHovered = false { didSet { applyAppearanceColors() } }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyAppearanceColors()
+    }
+
+    private func applyAppearanceColors() {
+        if baseOverlayAlpha > 0 {
+            layer?.backgroundColor = DesignKit.overlayCGColor(alpha: baseOverlayAlpha, appearance: effectiveAppearance)
+        }
         let alpha: CGFloat = isSelected ? 0.13 : (isHovered ? 0.07 : 0.0)
-        highlight.layer?.backgroundColor = NSColor.white.withAlphaComponent(alpha).cgColor
+        highlight.layer?.backgroundColor = alpha > 0
+            ? DesignKit.overlayCGColor(alpha: alpha, appearance: effectiveAppearance)
+            : NSColor.clear.cgColor
     }
 
     override func mouseEntered(with event: NSEvent) { isHovered = true }
     override func mouseExited(with event: NSEvent) { isHovered = false }
     override func mouseDown(with event: NSEvent) { action() }
+}
+
+/// Layer-backed translucent surface (cards, key caps) whose fill adapts to the
+/// light/dark theme and re-resolves on appearance change, so the toggle updates it live.
+final class OverlayView: NSView {
+    private let overlayAlpha: CGFloat
+
+    init(alpha: CGFloat, cornerRadius: CGFloat) {
+        self.overlayAlpha = alpha
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        wantsLayer = true
+        layer?.cornerRadius = cornerRadius
+        applyOverlay()
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyOverlay()
+    }
+
+    private func applyOverlay() {
+        layer?.backgroundColor = DesignKit.overlayCGColor(alpha: overlayAlpha, appearance: effectiveAppearance)
+    }
 }

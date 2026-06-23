@@ -110,9 +110,8 @@ final class HistoryCardsView: NSView, NSSearchFieldDelegate {
 
     private func card(for entry: HistoryEntry) -> NSView {
         let row = ClickableRow(action: { [weak self] in self?.copy(entry.text) })
-        row.wantsLayer = true
-        row.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.05).cgColor
-        row.layer?.cornerRadius = 10
+        row.baseOverlayAlpha = 0.05
+        row.cornerRadius = 10
 
         let text = NSTextField(wrappingLabelWithString: entry.text)
         text.font = .systemFont(ofSize: 14)

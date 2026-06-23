@@ -8,6 +8,7 @@ final class SettingsView: NSView {
     var onToggleLogin: (() -> Void)?
     var onSetRecordingWindow: ((String) -> Void)?
     var onSetFormatNumbers: ((Bool) -> Void)?
+    var onSetAppearance: ((String) -> Void)?
 
     private let modelValue = valueLabel()
     private let deviceValue = valueLabel()
@@ -17,6 +18,8 @@ final class SettingsView: NSView {
     private let numbersCheckbox = NSButton(checkboxWithTitle: "Convert spoken numbers to digits (e.g. \"twenty\" → 20)", target: nil, action: nil)
     private let windowSegmented = NSSegmentedControl(labels: ["Classic", "Mini", "None"], trackingMode: .selectOne, target: nil, action: nil)
     private let windowStyles = ["classic", "mini", "none"]
+    private let appearanceSegmented = NSSegmentedControl(labels: ["System", "Light", "Dark"], trackingMode: .selectOne, target: nil, action: nil)
+    private let appearanceModes = ["system", "light", "dark"]
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -32,6 +35,9 @@ final class SettingsView: NSView {
     func updateFormatNumbers(_ enabled: Bool) { numbersCheckbox.state = enabled ? .on : .off }
     func updateRecordingWindow(_ style: String) {
         windowSegmented.selectedSegment = windowStyles.firstIndex(of: style) ?? 0
+    }
+    func updateAppearance(_ mode: String) {
+        appearanceSegmented.selectedSegment = appearanceModes.firstIndex(of: mode) ?? 0
     }
 
     private static func valueLabel() -> NSTextField {
@@ -65,6 +71,12 @@ final class SettingsView: NSView {
         windowSegmented.action = #selector(windowChanged)
         windowSegmented.translatesAutoresizingMaskIntoConstraints = false
 
+        // Appearance picker
+        let appearanceLabel = DesignKit.sectionLabel("Appearance")
+        appearanceSegmented.target = self
+        appearanceSegmented.action = #selector(appearanceChanged)
+        appearanceSegmented.translatesAutoresizingMaskIntoConstraints = false
+
         // Numbers + login toggles
         numbersCheckbox.target = self
         numbersCheckbox.action = #selector(numbersChanged)
@@ -93,6 +105,8 @@ final class SettingsView: NSView {
             shortcutsCard,
             windowLabel,
             windowSegmented,
+            appearanceLabel,
+            appearanceSegmented,
             numbersCheckbox,
             loginCheckbox,
             accessButton,
@@ -103,6 +117,7 @@ final class SettingsView: NSView {
         column.alignment = .leading
         column.spacing = 14
         column.setCustomSpacing(8, after: windowLabel)
+        column.setCustomSpacing(8, after: appearanceLabel)
         column.translatesAutoresizingMaskIntoConstraints = false
 
         let scroll = NSScrollView()
@@ -194,5 +209,10 @@ final class SettingsView: NSView {
         let idx = windowSegmented.selectedSegment
         guard idx >= 0, idx < windowStyles.count else { return }
         onSetRecordingWindow?(windowStyles[idx])
+    }
+    @objc private func appearanceChanged() {
+        let idx = appearanceSegmented.selectedSegment
+        guard idx >= 0, idx < appearanceModes.count else { return }
+        onSetAppearance?(appearanceModes[idx])
     }
 }

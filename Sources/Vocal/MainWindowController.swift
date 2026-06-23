@@ -19,6 +19,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     var onToggleLogin: (() -> Void)?
     var onSetRecordingWindow: ((String) -> Void)?
     var onSetFormatNumbers: ((Bool) -> Void)?
+    var onSetAppearance: ((String) -> Void)?
     var loginEnabledProvider: (() -> Bool)?
 
     // Cached state so a freshly built window shows current values.
@@ -30,6 +31,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     private var toggleShortcut = ""
     private var recordingWindow = "classic"
     private var formatNumbers = true
+    private var appearance = "system"
 
     func show(section: Section = .home) {
         let firstBuild = window == nil
@@ -62,6 +64,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     func updateToggleShortcut(_ s: String) { toggleShortcut = s; settingsView?.updateToggleShortcut(s) }
     func updateRecordingWindow(_ s: String) { recordingWindow = s; settingsView?.updateRecordingWindow(s) }
     func updateFormatNumbers(_ enabled: Bool) { formatNumbers = enabled; settingsView?.updateFormatNumbers(enabled) }
+    func updateAppearance(_ mode: String) { appearance = mode; settingsView?.updateAppearance(mode) }
     func refreshLoginState() {
         let enabled = loginEnabledProvider?() ?? false
         homeView?.updateLoginState(enabled)
@@ -82,7 +85,8 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 720, height: 480)
-        window.appearance = NSAppearance(named: .darkAqua)
+        // Appearance follows NSApp.appearance, which AppDelegate sets from config
+        // (system / light / dark). No per-window override here.
         window.delegate = self
         window.isMovableByWindowBackground = true
 
@@ -139,6 +143,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         settingsView.onToggleLogin = { [weak self] in self?.onToggleLogin?() }
         settingsView.onSetRecordingWindow = { [weak self] in self?.onSetRecordingWindow?($0) }
         settingsView.onSetFormatNumbers = { [weak self] in self?.onSetFormatNumbers?($0) }
+        settingsView.onSetAppearance = { [weak self] in self?.onSetAppearance?($0) }
 
         for v in [homeView, historyView, settingsView] as [NSView] {
             content.addSubview(v)
@@ -186,6 +191,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         settingsView.updateToggleShortcut(toggleShortcut)
         settingsView.updateRecordingWindow(recordingWindow)
         settingsView.updateFormatNumbers(formatNumbers)
+        settingsView.updateAppearance(appearance)
         refreshLoginState()
     }
 
