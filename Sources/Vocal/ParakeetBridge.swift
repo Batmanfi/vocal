@@ -199,6 +199,15 @@ final class ParakeetBridge {
             return NSString(string: pythonExecutable).expandingTildeInPath
         }
 
+        // Self-contained install: a relocatable Python lives inside the app bundle at
+        // Contents/Resources/python. This is what lets the installed /Applications copy
+        // run with no project folder, no venv, and no system Python present.
+        if let embeddedPython = Bundle.main.resourceURL?
+            .appendingPathComponent("python/bin/python3").path,
+           FileManager.default.fileExists(atPath: embeddedPython) {
+            return embeddedPython
+        }
+
         if let bundleURL = Bundle.main.bundleURL as URL? {
             let projectVenvPython = bundleURL
                 .deletingLastPathComponent()

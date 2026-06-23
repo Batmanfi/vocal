@@ -10,47 +10,50 @@ Everything runs locally — audio never leaves your machine.
 
 - **Apple Silicon Mac (M1 or newer).** Transcription runs on MLX, which is Apple-Silicon only — Intel Macs are not supported.
 - **macOS 13 (Ventura) or newer.**
-- **Xcode command-line tools** (for `swift build`): `xcode-select --install`.
-- **Python 3.11** and **ffmpeg** — see [Python ASR Environment](#python-asr-environment).
+- **Xcode command-line tools** (for building): `xcode-select --install`.
 
-## Quick start
+That's it. You do **not** need to install Python — the installer bundles its own.
 
-```bash
-git clone https://github.com/Batmanfi/vocal.git
-cd vocal
+## Install
 
-# one-time Python setup (see "Python ASR Environment" for details)
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-brew install ffmpeg
-
-# build and launch
-./script/build_and_run.sh
-```
-
-The script builds the SwiftPM executable, stages `dist/Vocal.app`, and launches the app bundle.
-
-> **Gatekeeper:** the app is signed ad-hoc (or with a self-signed identity), not notarized by
-> Apple. Because you build it yourself from source the first launch should open normally, but if
-> macOS blocks it, right-click `Vocal.app` → **Open**, or allow it under
-> System Settings → Privacy & Security.
-
-## Install (open from Spotlight / Launchpad)
-
-To use Vocal like a normal app — launchable from Spotlight (⌘Space) or Launchpad instead of
-re-running the build script — install it into `/Applications`:
+One command builds Vocal and installs it into `/Applications` as a fully self-contained app:
 
 ```bash
-./script/install.sh
+curl -fsSL https://raw.githubusercontent.com/Batmanfi/vocal/main/script/install.sh | bash
 ```
 
-This builds the bundle, pins the Python venv path in `config.json` (so the installed copy
-finds `parakeet-mlx` even though `.venv` lives next to the project), copies the app to
-`/Applications/Vocal.app` with the same signing identity, and launches it. Because the
-signing identity is unchanged, your granted permissions carry over.
+Or, if you use Claude Code, just tell it:
 
-Once running it stays in the menu bar, so day-to-day you rarely need to reopen it. To have
-it start automatically at login, use the **Launch at Login** item in the menu-bar menu.
+> install https://github.com/Batmanfi/vocal
+
+The installer clones the repo, builds the native app, embeds its own Python + the
+speech-recognition stack **inside the app bundle**, signs it, and drops
+`Vocal.app` into `/Applications`. When it finishes you can delete the clone — the
+installed app is completely independent.
+
+After installing:
+
+- Open Vocal any time from **Spotlight** (⌘Space → "Vocal") or **Launchpad** — no terminal needed.
+- **First launch downloads the speech model (~2.3 GB) once**, then the app runs fully offline.
+- Grant **Microphone**, **Input Monitoring**, and **Accessibility** when prompted (needed to record and paste at your cursor).
+
+Because you build it on your own machine, macOS does not quarantine it — there's no
+Gatekeeper "unidentified developer" warning and no Apple notarization required.
+
+It stays in the menu bar, so day-to-day you rarely need to reopen it. To start it
+automatically at login, use **Launch at Login** in the menu-bar menu.
+
+### How "self-contained" works
+
+A normal Python virtualenv can't be copied to another Mac — it hardcodes paths and
+needs a matching Python already installed. Instead the installer embeds a relocatable
+[standalone Python](https://github.com/astral-sh/python-build-standalone) at
+`Vocal.app/Contents/Resources/python` and `pip install`s `parakeet-mlx` into it. The
+Swift app launches that embedded interpreter (`ParakeetBridge.findPython`), so the
+`.app` carries everything it needs — no system Python, no virtualenv, no Homebrew.
+
+The ~2.3 GB model is **not** bundled (it would push the app over 3 GB); it downloads
+once on first run into the Hugging Face cache.
 
 ## Features (menu bar)
 
@@ -80,19 +83,36 @@ in the inserted text: "twenty" → "20", "twenty-five" → "25", "one hundred tw
 "123". Sequences of single digits concatenate (phone numbers): "five five five one two
 three four" → "5551234". Toggle with `format_numbers` in config.
 
-## Python ASR Environment
+## Build from source (development)
 
-Create the local Python environment once, from the repo root:
+End users should just run the one-line [installer](#install). This section is for
+hacking on Vocal.
 
 ```bash
+git clone https://github.com/Batmanfi/vocal.git
+cd vocal
+
+# fast dev loop: builds dist/Vocal.app against a local venv and launches it
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-brew install ffmpeg
+./script/build_and_run.sh
 ```
 
-On first launch with dependencies installed, the model downloads into the Hugging Face cache. Later launches can run offline.
+`build_and_run.sh` is the quick iteration path — it builds the Swift executable and runs
+the bundle against the project's `.venv` (it does **not** embed Python, so the app stays
+tied to the checkout).
 
-The app sets `HF_HUB_DISABLE_XET=1` for the Parakeet helper. This avoids stalled downloads through Hugging Face's Xet CDN path on networks where `us.aws.cdn.hf.co/xorbs` has DNS or routing failures.
+To produce the distributable, self-contained bundle (embedded Python, copy-anywhere):
+
+```bash
+./script/package_app.sh     # builds dist/Vocal.app with Python embedded
+./script/install.sh         # the above + installs into /Applications
+```
+
+On first launch the model downloads into the Hugging Face cache; later launches run
+offline. The app sets `HF_HUB_DISABLE_XET=1` for the Parakeet helper to avoid stalled
+downloads through Hugging Face's Xet CDN path on networks where `us.aws.cdn.hf.co/xorbs`
+has DNS or routing failures.
 
 ## Permissions
 
