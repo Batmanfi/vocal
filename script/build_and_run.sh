@@ -31,6 +31,7 @@ mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
 cp "$ROOT_DIR/Sources/Vocal/Resources/parakeet_daemon.py" "$APP_RESOURCES/parakeet_daemon.py"
+cp "$ROOT_DIR/Sources/Vocal/Resources/MenuGlyph.svg" "$APP_RESOURCES/MenuGlyph.svg"
 
 ICON_SRC="$ROOT_DIR/Sources/Vocal/Resources/AppIcon.icns"
 if [ -f "$ICON_SRC" ]; then

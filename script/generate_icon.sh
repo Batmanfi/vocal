@@ -1,22 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Generates Sources/Vocal/Resources/AppIcon.icns — a violet squircle with a white
-# microphone glyph — so Vocal looks like a real app in Launchpad / Dock / Finder.
-# Run this once (or whenever you want to regenerate). To use a custom image instead,
-# replace AppIcon.icns with your own (1024x1024 source recommended).
+# Generates Sources/Vocal/Resources/AppIcon.icns from the source artwork at
+# Sources/Vocal/Resources/AppIconSource.png (1000x1000 recommended).
+#
+# The source is full-bleed, so we mask it into the standard macOS "squircle" tile
+# with a transparent margin — this makes Vocal sit correctly next to other apps in
+# the Dock / Launchpad / Finder. To use full-square corners instead, set
+# VOCAL_ICON_SQUIRCLE=0.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RES_DIR="$ROOT_DIR/Sources/Vocal/Resources"
+SRC_PNG="$RES_DIR/AppIconSource.png"
+SQUIRCLE="${VOCAL_ICON_SQUIRCLE:-1}"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+
+[ -f "$SRC_PNG" ] || { echo "ERROR: missing $SRC_PNG" >&2; exit 1; }
 
 SWIFT_SRC="$TMP/icon.swift"
 cat >"$SWIFT_SRC" <<'SWIFT'
 import AppKit
 
 let sizes = [16, 32, 64, 128, 256, 512, 1024]
-let outDir = CommandLine.arguments[1]
+let srcPath = CommandLine.arguments[1]
+let outDir = CommandLine.arguments[2]
+let squircle = CommandLine.arguments[3] != "0"
+
+guard let source = NSImage(contentsOfFile: srcPath) else {
+    FileHandle.standardError.write("Could not load \(srcPath)\n".data(using: .utf8)!)
+    exit(1)
+}
 
 func makeIcon(size: Int) -> Data? {
     let s = CGFloat(size)
@@ -27,30 +41,17 @@ func makeIcon(size: Int) -> Data? {
     guard let ctx = NSGraphicsContext(bitmapImageRep: rep) else { return nil }
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = ctx
+    ctx.imageInterpolation = .high
 
-    // Squircle background with a small margin, like a standard macOS icon tile.
-    let margin = s * 0.08
+    // Standard macOS icon grid: the tile occupies ~80% of the canvas, leaving a
+    // transparent margin, with a continuous rounded-rect (squircle) corner.
+    let margin = squircle ? s * 0.0977 : 0
     let rect = NSRect(x: margin, y: margin, width: s - margin * 2, height: s - margin * 2)
-    let radius = rect.width * 0.2237
-    let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
-    path.addClip()
-
-    let gradient = NSGradient(starting: NSColor(calibratedRed: 0.49, green: 0.36, blue: 1.0, alpha: 1.0),
-                              ending: NSColor(calibratedRed: 0.29, green: 0.18, blue: 0.84, alpha: 1.0))
-    gradient?.draw(in: rect, angle: -90)
-
-    // White microphone glyph centered.
-    let glyphSize = s * 0.46
-    let glyphRect = NSRect(x: (s - glyphSize) / 2, y: (s - glyphSize) / 2, width: glyphSize, height: glyphSize)
-    if let mic = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: nil) {
-        let config = NSImage.SymbolConfiguration(pointSize: glyphSize, weight: .regular)
-            .applying(NSImage.SymbolConfiguration(hierarchicalColor: .white))
-        if let white = mic.withSymbolConfiguration(config) {
-            white.draw(in: glyphRect, from: .zero, operation: .sourceOver, fraction: 1.0)
-        } else {
-            NSColor.white.set(); mic.draw(in: glyphRect)
-        }
+    if squircle {
+        let radius = rect.width * 0.2237
+        NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).addClip()
     }
+    source.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1.0)
 
     NSGraphicsContext.restoreGraphicsState()
     return rep.representation(using: .png, properties: [:])
@@ -65,7 +66,7 @@ SWIFT
 
 PNG_DIR="$TMP/png"
 mkdir -p "$PNG_DIR"
-swift "$SWIFT_SRC" "$PNG_DIR"
+swift "$SWIFT_SRC" "$SRC_PNG" "$PNG_DIR" "$SQUIRCLE"
 
 # Assemble the .iconset (Apple's required name/size layout) and convert to .icns.
 ICONSET="$TMP/Vocal.iconset"

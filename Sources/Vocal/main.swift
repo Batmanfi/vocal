@@ -122,6 +122,8 @@ struct VocalConfig: Codable {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
+    private var statusPulseTimer: Timer?
+    private var statusPulseStart = Date()
     private var statusMenuItem = NSMenuItem(title: "Loading model...", action: nil, keyEquivalent: "")
     private var lastEventMenuItem = NSMenuItem(title: "Last: Launching", action: nil, keyEquivalent: "")
     private var openWindowMenuItem = NSMenuItem(title: "Open Vocal Window", action: #selector(showMainWindow), keyEquivalent: "")
@@ -198,7 +200,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func buildStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = AppState.loading.icon
+        applyStatusImage(for: .loading)
 
         let menu = NSMenu()
         statusMenuItem.isEnabled = false
@@ -445,10 +447,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func setState(_ state: AppState, status: String) {
-        statusItem?.button?.title = state.icon
+        applyStatusImage(for: state)
         statusMenuItem.title = status
         mainWindow.updateStatus(icon: state.icon, text: status)
         NSLog("Vocal state: \(status)")
+    }
+
+    /// Render the Vocal glyph (per state) into the menu-bar button, falling back to
+    /// the emoji if the glyph asset can't be loaded. Pulses while recording/transcribing.
+    private func applyStatusImage(for state: AppState) {
+        guard let button = statusItem?.button else { return }
+        if let image = MenuBarIcon.image(for: state) {
+            button.image = image
+            button.title = ""
+            button.imagePosition = .imageOnly
+        } else {
+            button.image = nil
+            button.title = state.icon
+        }
+        if state == .recording || state == .transcribing {
+            startStatusPulse()
+        } else {
+            stopStatusPulse()
+        }
+    }
+
+    private func startStatusPulse() {
+        guard statusPulseTimer == nil else { return }
+        statusPulseStart = Date()
+        statusPulseTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+            guard let self, let button = self.statusItem?.button else { return }
+            // Smooth cosine pulse, ~1.4s period, alpha between 0.4 and 1.0.
+            let t = Date().timeIntervalSince(self.statusPulseStart)
+            button.alphaValue = 0.7 + 0.3 * cos(t * .pi * 2 / 1.4)
+        }
+    }
+
+    private func stopStatusPulse() {
+        statusPulseTimer?.invalidate()
+        statusPulseTimer = nil
+        statusItem?.button?.alphaValue = 1.0
     }
 
     private func setLastEvent(_ message: String) {

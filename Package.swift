@@ -13,10 +13,12 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "Vocal",
-            // AppIcon.icns is staged into the .app bundle by the build scripts, not by SwiftPM.
-            exclude: ["Resources/AppIcon.icns"],
+            // AppIcon.icns / AppIconSource.png are handled by the build scripts and the
+            // icon generator, not bundled by SwiftPM.
+            exclude: ["Resources/AppIcon.icns", "Resources/AppIconSource.png"],
             resources: [
-                .copy("Resources/parakeet_daemon.py")
+                .copy("Resources/parakeet_daemon.py"),
+                .copy("Resources/MenuGlyph.svg")
             ]
         )
     ]
