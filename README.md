@@ -34,7 +34,7 @@ installed app is completely independent.
 After installing:
 
 - Open Vocal any time from **Spotlight** (⌘Space → "Vocal") or **Launchpad** — no terminal needed.
-- **First launch downloads the speech model (~2.3 GB) once**, then the app runs fully offline.
+- **First launch downloads the speech model (~2.3 GB) once** — the Vocal window shows live download progress — then the app runs fully offline.
 - Grant **Microphone**, **Input Monitoring**, and **Accessibility** when prompted (needed to record and paste at your cursor).
 
 Because you build it on your own machine, macOS does not quarantine it — there's no

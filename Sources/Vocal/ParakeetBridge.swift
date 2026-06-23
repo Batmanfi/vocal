@@ -43,6 +43,7 @@ final class ParakeetBridge {
     private var isReady = false
     private var onReady: ((String) -> Void)?
     private var onError: ((String) -> Void)?
+    private var onProgress: ((Int, Int64, Int64) -> Void)?
 
     init(config: VocalConfig) throws {
         self.config = config
@@ -57,9 +58,12 @@ final class ParakeetBridge {
         }
     }
 
-    func start(onReady: @escaping (String) -> Void, onError: @escaping (String) -> Void) {
+    func start(onReady: @escaping (String) -> Void,
+               onError: @escaping (String) -> Void,
+               onProgress: ((Int, Int64, Int64) -> Void)? = nil) {
         self.onReady = onReady
         self.onError = onError
+        self.onProgress = onProgress
 
         process.executableURL = URL(fileURLWithPath: pythonPath)
         process.arguments = [helperURL.path, "--model", config.model]
@@ -154,6 +158,18 @@ final class ParakeetBridge {
             isReady = true
             let device = String(line.dropFirst("READY\t".count))
             onReady?(device)
+            return
+        }
+
+        // First-run model download: "PROGRESS\t<pct>\t<doneBytes>\t<totalBytes>"
+        if line.hasPrefix("PROGRESS\t") {
+            let fields = line.dropFirst("PROGRESS\t".count).split(separator: "\t")
+            if fields.count >= 3,
+               let pct = Int(fields[0]),
+               let done = Int64(fields[1]),
+               let total = Int64(fields[2]) {
+                onProgress?(pct, done, total)
+            }
             return
         }
 

@@ -273,6 +273,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     DispatchQueue.main.async {
                         self?.setState(.error, status: message)
                     }
+                },
+                onProgress: { [weak self] pct, done, total in
+                    DispatchQueue.main.async {
+                        guard let self, !self.isReady else { return }
+                        let f = ByteCountFormatter()
+                        f.allowedUnits = [.useMB, .useGB]
+                        f.countStyle = .file
+                        let downloaded = f.string(fromByteCount: done)
+                        let size = f.string(fromByteCount: total)
+                        self.setState(.loading,
+                                      status: "Downloading speech model… \(pct)% (\(downloaded) / \(size))")
+                        self.setLastEvent("First run: downloading model (one time)")
+                    }
                 }
             )
         } catch {
